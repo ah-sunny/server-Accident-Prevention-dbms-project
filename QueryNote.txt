@@ -1,0 +1,89 @@
+
+Corrected SQL for dangerousPlace Table:
+{
+
+    USE AccidentDB;
+
+CREATE TABLE `dangerousPlace` (
+    `locationID` INT AUTO_INCREMENT PRIMARY KEY,
+    `accidentID` INT NOT NULL,           -- Foreign key to `accidentDetails`
+    `location` VARCHAR(255) NOT NULL,     -- Add location here
+    `dangerPercentage` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    `level` VARCHAR(50) NOT NULL,
+    FOREIGN KEY (`accidentID`) REFERENCES `accidentDetails`(`accidentID`)
+        ON DELETE CASCADE
+);
+
+}
+
+
+
+Create Trigger to Update dangerousPlace: 
+{
+
+DELIMITER $$
+
+CREATE TRIGGER updateDangerousPlaceAfterInsert
+AFTER INSERT ON `accidentDetails`
+FOR EACH ROW
+BEGIN
+    DECLARE newDangerPercentage DECIMAL(5,2);
+
+    -- Calculate the new danger percentage for the location of the inserted record
+    SELECT 
+        (SUM(`deathNumber`) / (COUNT(*) * MAX(`deathNumber`))) * 100
+    INTO newDangerPercentage
+    FROM `accidentDetails`
+    WHERE `location` = NEW.`location`
+    GROUP BY `location`;
+
+    -- Update the `dangerousPlace` table with the new danger percentage
+    INSERT INTO `dangerousPlace` (`location`, `dangerPercentage`, `level`)
+    VALUES (NEW.`location`, newDangerPercentage, 
+        CASE
+            WHEN newDangerPercentage >= 50 THEN 'High'
+            WHEN newDangerPercentage >= 20 THEN 'Medium'
+            ELSE 'Low'
+        END)
+    ON DUPLICATE KEY UPDATE
+        `dangerPercentage` = newDangerPercentage,
+        `level` = CASE
+            WHEN newDangerPercentage >= 50 THEN 'High'
+            WHEN newDangerPercentage >= 20 THEN 'Medium'
+            ELSE 'Low'
+        END;
+END $$
+
+DELIMITER ;
+}
+
+How This Works:
+It calculates dangerPercentage as:
+(
+Total Deaths at Location
+Total Accidents at Location
+)
+×
+100
+( 
+Total Accidents at Location
+Total Deaths at Location
+​
+ )×100
+It assigns a level:
+High (≥ 50%)
+Medium (20% – 49%)
+Low (< 20%)
+The ON DUPLICATE KEY UPDATE ensures that if the location already exists, the dangerPercentage and level get updated.
+
+
+
+
+
+INSERT INTO accidentDetails (location, date, image, time, deathNumber, vehicleTypes, repairCost, damageParts, description) 
+VALUES 
+('Nabinagor', '2024-02-09', 'accident9.jpg', '13:20:00', 1, 'Car, Motorcycle', 16000, 'Front bumper, Side mirror', 'A speeding car hit a motorcycle at a junction.'),
+('Nabinagor', '2024-02-10', 'accident10.jpg', '22:15:00', 3, 'Truck, Bus', 50000, 'Engine, Windshield, Side panel', 'A truck crashed into a passenger bus due to brake failure.'),
+('Nabinagor', '2024-02-11', 'accident11.jpg', '07:30:00', 0, 'Bicycle, Auto-rickshaw', 7000, 'Handlebar, Wheel, Door', 'An early morning collision between a bicycle and an auto-rickshaw.'),
+('Nabinagor', '2024-02-12', 'accident12.jpg', '18:40:00', 2, 'Private Car, Pedestrian', 12000, 'Hood, Windshield', 'A pedestrian was fatally struck by a private car near a shopping mall.'),
+('Nabinagor', '2024-02-13', 'accident13.jpg', '10:25:00', 1, 'Motorcycle, Truck', 15000, 'Fuel tank, Exhaust, Front fork', 'A truck turned suddenly, hitting a motorcycle at a traffic signal.');

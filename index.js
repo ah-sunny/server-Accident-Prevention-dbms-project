@@ -109,6 +109,12 @@ app.get("/get_user", (req, res) => {
     });
 });
 
+
+
+
+
+
+
 // user code
 
 
@@ -211,17 +217,7 @@ app.post("/add_request_accident", (req, res) => {
 });
 
 
-app.get("/get_req_accidents", (req, res) => {
-    const sql = "SELECT * FROM accidentRequests";
 
-    DB.query(sql, (err, results) => {
-        if (err) {
-            console.error("Error fetching accident data:", err);
-            return res.status(500).json({ message: "Database error", error: err });
-        }
-        return res.status(200).json(results);
-    });
-});
 
 app.get("/get_req_accidents", (req, res) => {
     const useremail = req.query.useremail;
@@ -240,6 +236,28 @@ app.get("/get_req_accidents", (req, res) => {
         // If no records found, return a message
         if (results.length === 0) {
             return res.status(404).json({ message: "No accident details found for this user email" });
+        }
+
+        return res.status(200).json(results);  // Return the list of records for that email
+    });
+});
+app.get("/get_req_accidentsID", (req, res) => {
+    const requestAccidentID = req.query.requestAccidentID;
+    if (!requestAccidentID) {
+        return res.status(400).json({ message: "requestAccidentID is required" });
+    }
+
+    // Use parameterized query to avoid SQL injection
+    const sql = "SELECT * FROM accidentRequests WHERE requestAccidentID = ?";
+    DB.query(sql, [requestAccidentID], (err, results) => {
+        if (err) {
+            console.error("Error fetching data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+
+        // If no records found, return a message
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No accident details found for this requestAccidentID" });
         }
 
         return res.status(200).json(results);  // Return the list of records for that email
@@ -269,6 +287,199 @@ app.delete("/deleteAccidentReq", (req, res) => {
         }
 
         return res.status(200).json({ success: "Accident record deleted successfully" });
+    });
+});
+
+
+
+
+
+
+
+//admin api routes
+
+app.get("/get_alluser", (req, res) => {
+    const sql = "SELECT * FROM userInfo";
+
+    DB.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+        return res.status(200).json(results);
+    });
+});
+app.delete("/delete_user", (req, res) => {
+    const userID = req.query.userID;
+    // console.log(userID);
+
+    // Validate input parameters
+    if (!userID) {
+        return res.status(400).json({ message: "userID are required" });
+    }
+
+    const sql = "DELETE FROM userInfo WHERE userID = ?";
+
+    DB.query(sql, [userID], (err, result) => {
+        if (err) {
+            console.error("Error deleting data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "No matching user found to delete" });
+        }
+
+        return res.status(200).json({ success: "user deleted successfully" });
+    });
+});
+//update
+app.put("/update_user/:userID", (req, res) => {
+    const sql = `UPDATE userInfo SET role = ?, status = ? WHERE userID = ?`;
+    const values = [req.body.role, req.body.status, req.params.userID]; // Include userID as part of the values
+console.log(values);
+    DB.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Error updating user:", err);
+            return res.status(500).json({ message: "Error inside server", error: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.status(200).json({ success: "User updated successfully", updatedId: req.params.userID });
+    });
+});
+
+
+//req Accident
+app.get("/get_allReqAccident", (req, res) => {
+    const sql = "SELECT * FROM accidentRequests";
+
+    DB.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+        return res.status(200).json(results);
+    });
+});
+
+app.post("/addReq_To_mainAccidentDetails", (req, res) => {
+    const sql = `
+        INSERT INTO accidentDetails 
+        (location, date, image, time, deathNumber, vehicleTypes, repairCost, damageParts, description,requestAccidentID) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)`;
+
+    const values = [
+        req.body.location,
+        req.body.date,
+        req.body.image,
+        req.body.time,
+        req.body.deathNumber || 0,  // Default to 0 if not provided
+        req.body.vehicleTypes,
+        req.body.repairCost || 0,   // Default to 0 if not provided
+        req.body.damageParts || null, // Default to NULL if not provided
+        req.body.description || null, // Default to NULL if not provided
+        req.body.requestAccidentID || null,
+    ];
+
+    console.log("Received Data:", values);
+
+    DB.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Error inserting data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+        return res.status(201).json({
+            success: "Accident record added successfully",
+            insertedId: result.insertId // Return inserted ID
+        });
+    });
+});
+
+//update status
+app.put("/update_reqStatus/:requestAccidentID", (req, res) => {
+    const sql = `UPDATE accidentRequests SET status = ? WHERE requestAccidentID = ?`;
+    const values = [req.body.status, req.params.requestAccidentID]; // Include userID as part of the values
+console.log(values);
+    DB.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Error updating status:", err);
+            return res.status(500).json({ message: "Error inside server", error: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "data not found" });
+        }
+        return res.status(200).json({ success: "status updated successfully", updatedId: req.params.requestAccidentID });
+    });
+});
+
+app.get("/get_data", (req, res) => {
+    const sql = "SELECT * FROM accidentDetails";
+
+    DB.query(sql, (err, results) => {
+        if (err) {
+            console.error("Error fetching data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+        return res.status(200).json(results);
+    });
+});
+
+app.delete("/delete_dangerData", (req, res) => {
+    const accidentID = req.query.accidentID;
+    // console.log(userID);
+
+    // Validate input parameters
+    if (!accidentID) {
+        return res.status(400).json({ message: "accidentID are required" });
+    }
+
+    const sql = "DELETE FROM accidentDetails WHERE accidentID = ?";
+
+    DB.query(sql, [accidentID], (err, result) => {
+        if (err) {
+            console.error("Error deleting data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "No matching user found to delete" });
+        }
+
+        return res.status(200).json({ success: "danger data deleted successfully" });
+    });
+});
+app.post("/add_mainAccidentDetails", (req, res) => {
+    const sql = `
+        INSERT INTO accidentDetails 
+        (location, date, image, time, deathNumber, vehicleTypes, repairCost, damageParts, description) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    const values = [
+        req.body.location,
+        req.body.date,
+        req.body.image,
+        req.body.time,
+        req.body.deathNumber || 0,  // Default to 0 if not provided
+        req.body.vehicleTypes,
+        req.body.repairCost || 0,   // Default to 0 if not provided
+        req.body.damageParts || null, // Default to NULL if not provided
+        req.body.description || null, // Default to NULL if not provided
+        
+    ];
+
+    console.log("Received Data:", values);
+
+    DB.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Error inserting data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+        return res.status(201).json({
+            success: "Accident record added successfully",
+            insertedId: result.insertId // Return inserted ID
+        });
     });
 });
 

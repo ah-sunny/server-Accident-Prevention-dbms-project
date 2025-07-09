@@ -512,6 +512,35 @@ app.put("/update_reqStatus/:requestAccidentID", (req, res) => {
     });
 });
 
+//delete request accident Data
+app.delete("/delete_requestAccidentData", (req, res) => {
+    const requestAccidentID = req.query.requestAccidentID;
+    // console.log(userID);
+
+    // Validate input parameters
+    if (!requestAccidentID) {
+        return res.status(400).json({ message: "requestAccidentID are required" });
+    }
+
+    const sql = "DELETE FROM accidentRequests WHERE requestAccidentID = ?";
+
+    DB.query(sql, [requestAccidentID], (err, result) => {
+        if (err) {
+            console.error("Error deleting data:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "No matching user found to delete" });
+        }
+
+        return res.status(200).json({ success: "danger data deleted successfully" });
+    });
+});
+
+
+
+
 app.get("/get_data", (req, res) => {
     const sql = "SELECT * FROM accidentDetails";
 
@@ -548,6 +577,7 @@ app.delete("/delete_dangerData", (req, res) => {
         return res.status(200).json({ success: "danger data deleted successfully" });
     });
 });
+
 app.post("/add_mainAccidentDetails", (req, res) => {
     const sql = `
         INSERT INTO accidentDetails 

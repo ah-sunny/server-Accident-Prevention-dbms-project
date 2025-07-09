@@ -1,0 +1,158 @@
+...................Calculate percentage based only accident Number...........................
+
+
+
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+
+const app = express();
+const PORT = 5000;
+
+app.use(cors());
+
+// MySQL connection
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '',
+  database: 'yourDatabaseName'
+});
+
+db.connect(err => {
+  if (err) {
+    console.error('MySQL connection error:', err);
+    return;
+  }
+  console.log('Connected to MySQL');
+});
+
+// Ordered place list
+const routeOrder = [
+  'Dhaka',
+  'Gabtoli',
+  'Hemayetpur',
+  'C&B Road',
+  'Radiocolony Road',
+  'Savar'
+];
+
+// Danger level logic
+function getDangerLevel(percentage) {
+  if (percentage >= 75) return 'High';
+  if (percentage >= 40) return 'Medium';
+  return 'Low';
+}
+
+function getStatus(level) {
+  if (level === 'High') return 'Danger! Avoid this place.';
+  if (level === 'Medium') return 'Caution advised.';
+  return 'This place is safe.';
+}
+
+// 🚀 Route to return per-location summary
+app.get('/accident-summary', (req, res) => {
+  const query = `
+    SELECT location, COUNT(*) as totalAccidents,
+           SUM(deathNumber) as totalDeaths,
+           SUM(repairCost) as totalCost
+    FROM accidentDetails
+    GROUP BY location
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Query error:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Map DB result by location
+    const locationMap = {};
+    results.forEach(row => {
+      const percentage = Math.min((row.totalAccidents / 10) * 100, 100); // You can adjust logic here
+      const level = getDangerLevel(percentage);
+      locationMap[row.location] = {
+        place: row.location,
+        totalAccidents: row.totalAccidents,
+        totalDeaths: row.totalDeaths,
+        totalCost: row.totalCost,
+        dangerPercentage: Math.round(percentage),
+        dangerLevel: level,
+        status: getStatus(level)
+      };
+    });
+
+    // Prepare final data with all route places
+    const finalData = routeOrder.map(place => {
+      if (locationMap[place]) {
+        return locationMap[place];
+      } else {
+        return {
+          place,
+          totalAccidents: 0,
+          totalDeaths: 0,
+          totalCost: 0,
+          dangerPercentage: 0,
+          dangerLevel: 'Low',
+          status: getStatus('Low')
+        };
+      }
+    });
+
+    res.json(finalData);
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+
+..................................Calculate percentage based only (accidentNo and deathNumber).........................................................
+
+// API route
+app.get('/accident-summary', (req, res) => {
+  const query = `
+    SELECT location, COUNT(*) AS totalAccidents, SUM(deathCount) AS totalDeaths
+    FROM accidentDetails
+    GROUP BY location
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Query error:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    const locationMap = {};
+    results.forEach(row => {
+      const totalAccidents = row.totalAccidents || 0;
+      const totalDeaths = row.totalDeaths || 0;
+
+      // Calculate danger percentage as (deaths / accidents) * 100
+      const percentage =
+        totalAccidents > 0 ? Math.min((totalDeaths / totalAccidents) * 100, 100) : 0;
+
+      const level = getDangerLevel(percentage);
+      locationMap[row.location] = {
+        place: row.location,
+        dangerPercentage: Math.round(percentage),
+        dangerLevel: level,
+        status: getStatus(level)
+      };
+    });
+
+    // Final response with all places included
+    const finalData = routeOrder.map(place => {
+      return locationMap[place] || {
+        place,
+        dangerPercentage: 0,
+        dangerLevel: 'Low',
+        status: getStatus('Low')
+      };
+    });
+
+    res.json(finalData);
+  });
+});
+

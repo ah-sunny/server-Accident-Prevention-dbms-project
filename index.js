@@ -30,6 +30,9 @@ DB.connect((err) => {
     console.log("Connected to MySQL");
 });
 
+
+
+
 // // API Route to Add User
 // app.post("/add_user", (req, res) => {
 //     const sql =
@@ -111,16 +114,110 @@ app.get("/get_user", (req, res) => {
 
 
 
-
-
-
-
 // user code
+////////////////////////////////////
+// Hardcoded route order (control your route here)
+const routeOrder = [
+    'Savar',
+    'RadioColony',
+    'DairyGateJU',
+    'PrantikJU',
+    'Bismail',
+    'Nabinagor',
+    'Niribili',
+    'Gono-U-Turn',
+    'NITER',
+];
+// ✅ Convert danger percentage to danger level
+function getDangerLevel(percentage) {
+    if (percentage >= 75) return 'High';
+    if (percentage >= 40) return 'Medium';
+    return 'Low';
+}
+// Add status based on level
+function getStatus(level) {
+    if (level === 'High') return 'Danger! Drive Carefully.';
+    if (level === 'Medium') return 'Caution advised.';
+    return 'This place is safe.';
+}
+
+
+// 🚀 Route to return per-location summary
+// API route
+app.get('/high-risk-areaRoute', (req, res) => {
+    const query = `
+    SELECT location,
+    accidentID,
+     COUNT(*) AS totalAccidents,
+      SUM(deathNumber) AS totalDeaths
+    FROM accidentDetails
+    GROUP BY location
+  `;
+
+    DB.query(query, (err, results) => {
+        if (err) {
+            console.error('Query error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        // console.log("query result: ",results);
+        const locationMap = {};
+        results.forEach(row => {
+            const totalAccidents = Number(row.totalAccidents) || 0;
+            const totalDeaths = Number(row.totalDeaths) || 0;
+
+            //Percentage Calculation
+            const percentage = (totalAccidents / totalDeaths) * 100;
+
+            // console.log("Danger Percentage:", percentage.toFixed(2) + "%");
+
+            const level = getDangerLevel(percentage);
+            locationMap[row.location] = {
+                location: row.location,
+                accidentID: row.accidentID,
+                dangerPercentage: Math.round(percentage),
+                dangerLevel: level,
+                status: getStatus(level)
+            };
+        });
+
+        //  console.log("locationMap : ", locationMap)
+
+        // Final response with all places included
+        const finalData = routeOrder.map(location => {
+            return locationMap[location] || {
+                location,
+                accidentID: 0,
+                dangerPercentage: 0,
+                dangerLevel: 'Low',
+                status: getStatus('Low')
+            };
+        });
+
+        res.json(finalData);
+    });
+});
+
+
 
 
 // API Route to Get All acc-details
-app.get("/get_dangerZone", (req, res) => {
-    const sql = "SELECT * FROM dangerousPlace";
+// app.get("/get_dangerZone", (req, res) => {
+//     const sql = "SELECT * FROM dangerousPlace";
+
+//     DB.query(sql, (err, results) => {
+//         if (err) {
+//             console.error("Error fetching data:", err);
+//             return res.status(500).json({ message: "Database error", error: err });
+//         }
+//         return res.status(200).json(results);
+//     });
+// });
+
+//accident details api
+
+
+app.get("/allAccident", (req, res) => {
+    const sql = "SELECT * FROM accidentDetails";
 
     DB.query(sql, (err, results) => {
         if (err) {
@@ -130,7 +227,6 @@ app.get("/get_dangerZone", (req, res) => {
         return res.status(200).json(results);
     });
 });
-
 //get accident details by location
 app.get("/locationBasedAccidentDetails", (req, res) => {
     const location = req.query.location;
@@ -146,9 +242,9 @@ app.get("/locationBasedAccidentDetails", (req, res) => {
             return res.status(500).json({ message: "Database error", error: err });
         }
 
-        // If no records found, return a message
+        // If no records found, return a message 
         if (results.length === 0) {
-            return res.status(404).json({ message: "No accident details found for this location" });
+            return res.status(404).json({ message: `No accident records found for location: ${location}`  });
         }
 
         return res.status(200).json(results);  // Return the list of records for that location
@@ -179,6 +275,11 @@ app.get("/accidentDetailsByAccidentID", (req, res) => {
         return res.status(200).json(results);
     });
 });
+
+
+
+
+
 
 //accident request
 app.post("/add_request_accident", (req, res) => {
@@ -215,8 +316,6 @@ app.post("/add_request_accident", (req, res) => {
         });
     });
 });
-
-
 
 
 app.get("/get_req_accidents", (req, res) => {
@@ -263,7 +362,6 @@ app.get("/get_req_accidentsID", (req, res) => {
         return res.status(200).json(results);  // Return the list of records for that email
     });
 });
-
 
 app.delete("/deleteAccidentReq", (req, res) => {
     const requestAccidentID = req.query.requestAccidentID;
@@ -337,7 +435,7 @@ app.delete("/delete_user", (req, res) => {
 app.put("/update_user/:userID", (req, res) => {
     const sql = `UPDATE userInfo SET role = ?, status = ? WHERE userID = ?`;
     const values = [req.body.role, req.body.status, req.params.userID]; // Include userID as part of the values
-console.log(values);
+    console.log(values);
     DB.query(sql, values, (err, result) => {
         if (err) {
             console.error("Error updating user:", err);
@@ -401,7 +499,7 @@ app.post("/addReq_To_mainAccidentDetails", (req, res) => {
 app.put("/update_reqStatus/:requestAccidentID", (req, res) => {
     const sql = `UPDATE accidentRequests SET status = ? WHERE requestAccidentID = ?`;
     const values = [req.body.status, req.params.requestAccidentID]; // Include userID as part of the values
-console.log(values);
+    console.log(values);
     DB.query(sql, values, (err, result) => {
         if (err) {
             console.error("Error updating status:", err);
@@ -466,7 +564,7 @@ app.post("/add_mainAccidentDetails", (req, res) => {
         req.body.repairCost || 0,   // Default to 0 if not provided
         req.body.damageParts || null, // Default to NULL if not provided
         req.body.description || null, // Default to NULL if not provided
-        
+
     ];
 
     console.log("Received Data:", values);
@@ -493,19 +591,6 @@ app.post("/add_mainAccidentDetails", (req, res) => {
 //         console.log(result);
 //     }
 // });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

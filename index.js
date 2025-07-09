@@ -359,7 +359,7 @@ app.get("/get_req_accidentsID", (req, res) => {
             return res.status(404).json({ message: "No accident details found for this requestAccidentID" });
         }
 
-        return res.status(200).json(results);  // Return the list of records for that email
+        return res.status(200).json(results[0]);  // Return the list of records for that email
     });
 });
 
@@ -435,7 +435,7 @@ app.delete("/delete_user", (req, res) => {
 app.put("/update_user/:userID", (req, res) => {
     const sql = `UPDATE userInfo SET role = ?, status = ? WHERE userID = ?`;
     const values = [req.body.role, req.body.status, req.params.userID]; // Include userID as part of the values
-    console.log(values);
+    // console.log(values);
     DB.query(sql, values, (err, result) => {
         if (err) {
             console.error("Error updating user:", err);
@@ -540,6 +540,92 @@ app.delete("/delete_requestAccidentData", (req, res) => {
 
 
 
+//update req user accident details
+app.put("/update_reqStatus/:requestAccidentID", (req, res) => {
+    const sql = `UPDATE accidentRequests SET status = ? WHERE requestAccidentID = ?`;
+    const values = [req.body.status, req.params.requestAccidentID]; // Include userID as part of the values
+    console.log(values);
+    DB.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Error updating status:", err);
+            return res.status(500).json({ message: "Error inside server", error: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "data not found" });
+        }
+        return res.status(200).json({ success: "status updated successfully", updatedId: req.params.requestAccidentID });
+    });
+});
+
+app.put("/update_request_accident", (req, res) => {
+  const {
+    requestAccidentID, // must be sent in body to identify which row to update
+    damageParts,
+    date,
+    deathNumber,
+    description,
+    image,
+    location,
+    repairCost,
+    time,
+    useremail,
+    username,
+    vehicleTypes
+  } = req.body;
+
+  if (!requestAccidentID) {
+    return res.status(400).json({ message: "requestAccidentID is required for updating." });
+  }
+
+  const sql = `
+    UPDATE accidentRequests SET 
+      damageParts = ?, 
+      date = ?, 
+      deathNumber = ?, 
+      description = ?, 
+      image = ?, 
+      location = ?, 
+      repairCost = ?, 
+      time = ?, 
+      useremail = ?, 
+      username = ?, 
+      vehicleTypes = ?
+    WHERE requestAccidentID = ?
+  `;
+
+  const values = [
+    damageParts,
+    date,
+    deathNumber,
+    description,
+    image,
+    location,
+    repairCost,
+    time,
+    useremail,
+    username,
+    vehicleTypes,
+    requestAccidentID
+  ];
+
+  DB.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Error updating record:", err);
+      return res.status(500).json({ message: "Database update error", error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "No record found with the given requestAccidentID" });
+    }
+
+    return res.status(200).json({ message: "Accident request updated successfully" });
+  });
+});
+
+
+
+
+
 
 app.get("/get_data", (req, res) => {
     const sql = "SELECT * FROM accidentDetails";
@@ -636,3 +722,14 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+
+

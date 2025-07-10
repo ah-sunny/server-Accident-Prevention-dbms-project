@@ -2,7 +2,8 @@ const express = require('express');
 const mysql = require('mysql');
 const cors = require('cors');
 const path = require('path');
-
+// const mysql = require('mysql2');
+require('dotenv').config();
 
 const app = express();
 
@@ -10,24 +11,34 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.DB_PORT || 4000;
+
+// const DB = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'AccidentDB'
+
+// });
 
 const DB = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'AccidentDB'
-
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT
 });
+
+
 
 
 // Connect to MySQL
 DB.connect((err) => {
     if (err) {
-        console.error("Database connection failed:", err);
+        console.error("❌ Database connection failed:", err);
         return;
     }
-    console.log("Connected to MySQL");
+    console.log("✅ Connected to MySQL Database");
 });
 
 
@@ -285,8 +296,8 @@ app.get("/accidentDetailsByAccidentID", (req, res) => {
 app.post("/add_request_accident", (req, res) => {
     const sql = `
         INSERT INTO accidentRequests 
-        (location, date, image, time, deathNumber, vehicleTypes, repairCost, damageParts, description, username, userID, useremail) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        (location, date, image, time, deathNumber, vehicleTypes, repairCost, damageParts, description, username, userID, useremail,status) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const values = [
         req.body.location,
@@ -300,7 +311,8 @@ app.post("/add_request_accident", (req, res) => {
         req.body.description || null, // Default to NULL if not provided
         req.body.username,
         req.body.userID,
-        req.body.useremail
+        req.body.useremail,
+        req.body.status
     ];
 
     console.log("Received Data:", values);

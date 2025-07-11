@@ -11,6 +11,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
     origin: [
         'http://localhost:5173',
+        'https://accident-prevention-system1.web.app/',
     ]
 }));
 app.use((err, req, res, next) => {

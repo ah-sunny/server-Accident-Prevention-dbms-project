@@ -10,8 +10,9 @@ const serverless = require('serverless-http');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
     origin: [
+        'https://accident-prevention-system1.web.app',
+        'https://accident-prevention-system1.firebaseapp.com',
         'http://localhost:5173',
-        'https://accident-prevention-system1.web.app/',
     ]
 }));
 app.use((err, req, res, next) => {
